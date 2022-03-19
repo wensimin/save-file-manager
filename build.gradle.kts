@@ -18,6 +18,13 @@ repositories {
 
 dependencies {
     implementation(compose.desktop.currentOs)
+    // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.2")
+    // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-kotlin
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2")
+
+
+
 }
 
 tasks.withType<KotlinCompile> {
