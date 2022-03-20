@@ -193,7 +193,7 @@ fun saveData(index: Int, backups: Array<Backup?>) {
 
 fun initData(backups: Array<Backup?>) {
     File(BASE_BACKUP_DIR).run {
-        val config = objectMapper.readValue<Config>(File(BASE_BACKUP_DIR + File.separator + "config.json"))
+        val config = objectMapper.readValue<Config>(File(BASE_BACKUP_DIR + File.separator + "config-example.json"))
         for (i in 0..config.backups.size) {
             val backup = config.backups[i] ?: break
             // 删除本地已经不存在的备份
@@ -212,7 +212,7 @@ fun initData(backups: Array<Backup?>) {
 
 fun saveConfig(backups: Array<Backup?>) {
     objectMapper.writeValue(
-        File(BASE_BACKUP_DIR + File.separator + "config.json"),
+        File(BASE_BACKUP_DIR + File.separator + "config-example.json"),
         Config(backupPath.value, backups)
     )
 }
