@@ -28,7 +28,7 @@ dependencies {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "17"
+    kotlinOptions.jvmTarget = "15"
 }
 
 compose.desktop {
@@ -37,7 +37,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "save-file-manager"
-            packageVersion = "1.0.2"
+            packageVersion = "1.0.3"
         }
     }
 }
