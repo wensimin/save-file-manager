@@ -35,9 +35,9 @@ compose.desktop {
     application {
         mainClass = "MainKt"
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Exe, TargetFormat.Deb)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "save-file-manager"
-            packageVersion = "1.0.0"
+            packageVersion = "1.0.1"
         }
     }
 }
