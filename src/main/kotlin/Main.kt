@@ -233,11 +233,15 @@ fun openFileDialog(callback: (path: String) -> Unit) {
 
 
 fun main() {
+    try {
+        application {
 
-    application {
-
-        Window(onCloseRequest = ::exitApplication, title = "存档管理工具") {
-            App()
+            Window(onCloseRequest = ::exitApplication, title = "存档管理工具") {
+                App()
+            }
         }
+    } catch (e: Exception) {
+        File("error.log").writeText(e.stackTraceToString())
     }
+
 }

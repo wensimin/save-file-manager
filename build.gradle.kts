@@ -37,7 +37,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "save-file-manager"
-            packageVersion = "1.0.1"
+            packageVersion = "1.0.2"
         }
     }
 }
