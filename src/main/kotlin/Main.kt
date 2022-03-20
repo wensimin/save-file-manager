@@ -14,60 +14,30 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 import javax.swing.JFileChooser
 
 const val MAX_SAVE = 10
 const val BASE_BACKUP_DIR = "backup"
+val DATA_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 val objectMapper = ObjectMapper().apply {
     this.registerKotlinModule()
 }
-var config: Config? = null
+
+
+val backupPath = mutableStateOf("")
+val showConfirm = mutableStateOf(false)
+val confirmMessage = mutableStateOf("")
+val confirmAction = mutableStateOf({})
 
 @Composable
 @Preview
 fun App() {
-    val path = remember { mutableStateOf(config!!.path) }
-    val showConfirm = remember { mutableStateOf(false) }
-    val confirmMessage = remember { mutableStateOf("") }
-    val confirmAction = remember { mutableStateOf({}) }
     val backups = remember {
         arrayOfNulls<Backup>(MAX_SAVE).also {
-            config!!.backups?.forEachIndexed { i, backup ->
-                it[i] = backup
-            }
+            initData(it)
         }
-    }
-
-    fun showConfirmDialog(message: String, action: () -> Unit = {}) {
-        showConfirm.value = true
-        confirmMessage.value = message
-        confirmAction.value = action
-    }
-
-    @OptIn(ExperimentalMaterialApi::class)
-    @Composable
-    fun Confirm() {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(confirmMessage.value) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showConfirm.value = false
-                        confirmAction.value.invoke()
-                    }
-                ) {
-                    Text("确定")
-                }
-            },
-            dismissButton = {
-                Button(
-                    onClick = { showConfirm.value = false }
-                ) {
-                    Text("取消")
-                }
-            }
-        )
     }
 
     if (showConfirm.value) Confirm()
@@ -91,12 +61,15 @@ fun App() {
                 ) {
                     OutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        value = path.value,
-                        onValueChange = { path.value = it },
+                        value = backupPath.value,
+                        onValueChange = {
+                            backupPath.value = it
+                            saveConfig(backups)
+                        },
                         label = { Text("输入需要管理的文件目录") },
                     )
                     Button(
-                        onClick = { openFileDialog { path.value = it } },
+                        onClick = { openFileDialog { backupPath.value = it } },
                         modifier = Modifier.padding(5.dp)
                             .width(100.dp)
                     ) {
@@ -124,11 +97,7 @@ fun App() {
                                     .height(50.dp)
                                     .clickable {
                                         showConfirmDialog("确定要保存当前数据到${it + 1}栏位吗") {
-                                            saveData(
-                                                it,
-                                                path.value,
-                                                backups
-                                            )
+                                            saveData(it, backups)
                                         }
                                     },
                                 elevation = 10.dp
@@ -144,21 +113,24 @@ fun App() {
                                             .padding(start = 5.dp)
                                             .weight(1f)
                                     )
-                                    Button(
-                                        onClick = {
-                                            showConfirmDialog("确定要加载${it + 1}栏位的数据吗") {
-                                                loadData(
-                                                    it,
-                                                    path.value
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .padding(5.dp)
-                                            .width(100.dp)
-                                    ) {
-                                        Text("读取")
+                                    if (backup != null) {
+                                        Button(
+                                            onClick = {
+                                                showConfirmDialog("确定要加载${it + 1}栏位的数据吗") {
+                                                    loadData(
+                                                        it,
+                                                        backupPath.value
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .padding(5.dp)
+                                                .width(100.dp)
+                                        ) {
+                                            Text("读取")
+                                        }
                                     }
+
                                 }
 
                             }
@@ -175,37 +147,74 @@ fun App() {
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun Confirm() {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(confirmMessage.value) },
+        confirmButton = {
+            Button(
+                onClick = {
+                    showConfirm.value = false
+                    confirmAction.value.invoke()
+                }
+            ) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = { showConfirm.value = false }
+            ) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+fun showConfirmDialog(message: String, action: () -> Unit = {}) {
+    showConfirm.value = true
+    confirmMessage.value = message
+    confirmAction.value = action
+}
+
 fun loadData(index: Int, path: String) {
     val loadPath = BASE_BACKUP_DIR + File.separator + index
     File(loadPath).copyRecursively(File(path), true)
 }
 
-fun saveData(index: Int, path: String, backups: Array<Backup?>) {
+fun saveData(index: Int, backups: Array<Backup?>) {
     val savePath = BASE_BACKUP_DIR + File.separator + index
-    File(path).copyRecursively(File(savePath), true)
-    backups[index] = Backup(index, "dateTODO", "")
-    config!!.backups = backups
-    saveConfig()
+    File(backupPath.value).copyRecursively(File(savePath), true)
+    backups[index] = Backup(index, DATA_FORMAT.format(Date()), "")
+    saveConfig(backups)
 }
 
-fun initData() {
+fun initData(backups: Array<Backup?>) {
     File(BASE_BACKUP_DIR).run {
-        mkdir()
-        config = objectMapper.readValue<Config>(File(BASE_BACKUP_DIR + File.separator + "config.json"))
-        config!!.backups?.forEachIndexed { index, backup ->
-            if (backup == null) return
+        val config = objectMapper.readValue<Config>(File(BASE_BACKUP_DIR + File.separator + "config.json"))
+        for (i in 0..config.backups.size) {
+            val backup = config.backups[i] ?: break
+            // 删除本地已经不存在的备份
             if (!File(BASE_BACKUP_DIR + File.separator + backup.index).exists()) {
-                config!!.backups?.set(index, null)
-                saveConfig()
+                config.backups[config.backups.indexOf(backup)] = null
             }
+            // 读取到对象里
+            backups[i] = config.backups[i]
         }
-        //TODO 在这里的save不执行,未找到原因
+        backupPath.value = config.path
+        saveConfig(backups)
+        //FIXME 前面若使用foreach&foreach index在这里的save不执行,未找到原因
 //        saveConfig()
     }
 }
 
-fun saveConfig() {
-    objectMapper.writeValue(File(BASE_BACKUP_DIR + File.separator + "config.json"), config)
+fun saveConfig(backups: Array<Backup?>) {
+    objectMapper.writeValue(
+        File(BASE_BACKUP_DIR + File.separator + "config.json"),
+        Config(backupPath.value, backups)
+    )
 }
 
 fun openFileDialog(callback: (path: String) -> Unit) {
@@ -223,7 +232,7 @@ fun openFileDialog(callback: (path: String) -> Unit) {
 
 
 fun main() {
-    initData()
+
     application {
 
         Window(onCloseRequest = ::exitApplication, title = "存档管理工具") {
