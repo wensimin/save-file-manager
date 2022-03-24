@@ -20,6 +20,9 @@ import javax.swing.JFileChooser
 
 const val MAX_SAVE = 10
 const val BASE_BACKUP_DIR = "backup"
+
+//快照,读取之前保存上次值
+const val SNAPSHOT_DIR = "snapshot"
 const val CONFIG_FILE = "config.json"
 val DATA_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 val objectMapper = ObjectMapper().apply {
@@ -31,7 +34,7 @@ val backupPath = mutableStateOf("")
 val showConfirm = mutableStateOf(false)
 val confirmMessage = mutableStateOf("")
 val confirmAction = mutableStateOf({})
-
+val snapshot = mutableStateOf<Backup?>(null)
 @Composable
 @Preview
 fun App() {
@@ -82,6 +85,40 @@ fun App() {
                         Text("选择目录")
                     }
                 }
+
+                Card(
+                    modifier = Modifier
+                        .padding(top = 20.dp)
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    elevation = 10.dp
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val text = if (snapshot.value == null) "没有记录" else "自动保存于上次读取 ${snapshot.value!!.createDate}"
+                        Text(
+                            text, modifier = Modifier
+                                .padding(start = 20.dp)
+                                .weight(1f)
+                        )
+                        Button(
+                            onClick = {
+                                showConfirmDialog("确定要加载快照的数据吗") {
+                                    loadSnapshot()
+                                }
+                            },
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .width(100.dp)
+                        ) {
+                            Text("读取")
+                        }
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .padding(vertical = 20.dp)
@@ -123,6 +160,8 @@ fun App() {
                                         Button(
                                             onClick = {
                                                 showConfirmDialog("确定要加载${it + 1}栏位的数据吗") {
+                                                    //读取之前进行快照保存
+                                                    saveSnapshot(backups)
                                                     loadData(
                                                         it,
                                                         backupPath.value
@@ -190,6 +229,20 @@ fun loadData(index: Int, path: String) {
     File(loadPath).copyRecursively(File(path), true)
 }
 
+fun loadSnapshot() {
+    val loadPath = BASE_BACKUP_DIR + File.separator + SNAPSHOT_DIR
+    File(loadPath).copyRecursively(File(backupPath.value), true)
+}
+
+fun saveSnapshot(backups: Array<Backup?>) {
+    val savePath = BASE_BACKUP_DIR + File.separator + SNAPSHOT_DIR
+    File(backupPath.value).copyRecursively(File(savePath), true)
+    // snapshot index always 0
+    snapshot.value = Backup(0, DATA_FORMAT.format(Date()), "")
+    saveConfig(backups)
+}
+
+
 fun saveData(index: Int, backups: Array<Backup?>) {
     val savePath = BASE_BACKUP_DIR + File.separator + index
     File(backupPath.value).copyRecursively(File(savePath), true)
@@ -210,6 +263,11 @@ fun initData(backups: Array<Backup?>) {
             backups[i] = config.backups[i]
         }
         backupPath.value = config.path
+        // 删除本地不存在的快照
+        if (!File(BASE_BACKUP_DIR + File.separator + SNAPSHOT_DIR).exists()) {
+            config.snapshot = null
+        }
+        snapshot.value = config.snapshot
         saveConfig(backups)
         //FIXME 前面若使用foreach&foreach index在这里的save不执行,未找到原因
 //        saveConfig()
@@ -219,7 +277,7 @@ fun initData(backups: Array<Backup?>) {
 fun saveConfig(backups: Array<Backup?>) {
     objectMapper.writeValue(
         File(BASE_BACKUP_DIR + File.separator + CONFIG_FILE),
-        Config(backupPath.value, backups)
+        Config(backupPath.value, backups, snapshot.value)
     )
 }
 
@@ -240,7 +298,6 @@ fun openFileDialog(callback: (path: String) -> Unit) {
 fun main() {
     try {
         application {
-
             Window(onCloseRequest = ::exitApplication, title = "存档管理工具") {
                 App()
             }
