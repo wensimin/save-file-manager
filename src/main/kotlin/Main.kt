@@ -70,7 +70,12 @@ fun App() {
                         label = { Text("输入需要管理的文件目录") },
                     )
                     Button(
-                        onClick = { openFileDialog { backupPath.value = it } },
+                        onClick = {
+                            openFileDialog {
+                                backupPath.value = it
+                                saveConfig(backups)
+                            }
+                        },
                         modifier = Modifier.padding(5.dp)
                             .width(100.dp)
                     ) {
